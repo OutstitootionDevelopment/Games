@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<title>Nim</title>
+	<style type="text/css">
+	#stack>div{
+		height: 116px;
+		display: flex;
+		justify-content: center;
+	}
+	.stick {
+		display: inline-block;
+		width: 8px;
+		height: 100px;
+		background-color: #000;
+		margin: 8px 32px;
+		transition: background-color 333ms;
+	}
+	.stick.selected {
+		background-color: #4285F4;
+	}
+	.stick.computerSelected {
+		background-color: #F7C223;
+	}
+	.error>.stick.selected {
+		background-color: #DE3E35;
+	}
+	input {
+		position: absolute;
+		left: 50%;
+		margin-left: -100px;
+		font-size: 24px;
+		width: 200px;
+	}
+	#credits {
+		position: absolute;
+		bottom: 0;
+	}
+	</style>
+</head>
+<body>
+	<div id="stack">
+		<div id="row0">
+			<div class="stick"></div>
+		</div>
+		<div id="row1">
+			<div class="stick"></div><div class="stick"></div><div class="stick"></div>
+		</div>
+		<div id="row2">
+			<div class="stick"></div><div class="stick"></div><div class="stick"></div><div class="stick"></div><div class="stick"></div>
+		</div>
+		<div id="row3">
+			<div class="stick"></div><div class="stick"></div><div class="stick"></div><div class="stick"></div><div class="stick"></div><div class="stick"></div><div class="stick"></div>
+		</div>
+	</div>
+	<input type="button" id="take" value="TAKE" />
+	<p id="credits">Created by <a href="http://github.com/CharCoding">CharCoding</a>, 2017</p>
+	<script type="text/javascript">
+	var ws = new WebSocket('ws://localhost:8080','2pg');
+	ws.addEventListener('open',function(e){
+		alert('Connected!');
+	});
+	ws.onmessage = function(event){
+		console.dir(event.data);
+	}
+
+	var sticks = [1,3,5,7], focusId = '', computerGoFirst = true; // change this to false for player first
+	
+	document.addEventListener('keydown',function(e){
+		if(e.keyCode == 13 || e.keyCode == 32){
+			takeSticks();
+		}
+	});
+	take.addEventListener('click',takeSticks);
+	stack.addEventListener('click',function(e){
+		var elm = e.target;
+		if(elm.classList.contains('stick')){
+			elm.classList.toggle('selected');
+		}else{
+			return;
+		}
+		if(focusId == '')focusId = elm.parentNode.id;
+		else if(focusId != elm.parentNode.id){
+			var row = document.getElementById(focusId);
+			row.classList.add('error');
+			setTimeout(function(){
+				row.classList.remove('error');
+				for(var i = 0;i < row.children.length; i++){
+					row.children[i].classList.remove('selected');
+				}
+			},333);
+			focusId = elm.parentNode.id;
+		}
+	});
+
+	function takeSticks(){
+		var row = document.getElementById(focusId);
+		if(!row) return;
+		var list = row.getElementsByClassName('selected');
+		if(!list.length) return;
+		while(list.length)row.removeChild(list[0]);
+		this.disabled = true;
+		computerSelect(optimalMove(countStacks()));
+	}
+
+	function countStacks(){
+		sticks[0] = row0.children.length;
+		sticks[1] = row1.children.length;
+		sticks[2] = row2.children.length;
+		sticks[3] = row3.children.length;
+		return sticks;
+	}
+
+	function optimalMove(stacks) {
+  	var stacks_xor = stacks.reduce((r, e) => r ^ e, 0);
+  	var is_endgame = stacks.reduce((r, e) => r + (e > 1), 0) < 2;
+  	var move = stacks.reduce((move, stack, i) => {
+    	var take = stack - (is_endgame ^ stack ^ stacks_xor);
+    	return take > move[1] ? [i, take] : move;
+  	}, [0, 0]);
+  	return move[1] > 0 ? move : undefined;
+	}
+
+	function computerSelect(move){
+		//console.log(move);
+		if(sticks.join('') == '0000'){
+			reset(); // player lost
+			return;
+		}
+		if(!move){
+			var rand = document.getElementsByClassName('stick'),
+			stick = rand[Math.random()*rand.length|0];
+			stick.classList.add('computerSelected');
+			setTimeout(function(){
+				stick.parentNode.removeChild(stick);
+				if(countStacks().join('')=='0000'){
+					reset(true); // player won
+				}
+				take.disabled=false;
+			},333);
+			return;
+		}
+		var row = document.getElementById('row'+move[0]);
+		for(var i=0;i<move[1];i++){
+			row.children[i].classList.add('computerSelected');
+		}
+		setTimeout(function(){
+			var list = document.getElementsByClassName('computerSelected');
+			while(list.length){
+				row.removeChild(list[0]);
+			}
+			take.disabled=false;
+		},333);
+	}
+
+	function reset(win){
+		var r = confirm('You '+(win?'won':'lost')+ '! Play again?');
+		if(r){
+			take.disabled = false;
+			for(var i=0;i<4;i++){
+				var row = document.getElementById('row'+i);
+				for(var j=0;j<i*2+1;j++){
+					var stick = document.createElement('div');
+					stick.classList.add('stick');
+					row.appendChild(stick);
+				}
+			}
+			countStacks();
+			if(computerGoFirst = !computerGoFirst)computerSelect(undefined);
+		}
+	}
+	if(computerGoFirst)setTimeout(computerSelect,333);
+	</script>
+</body>
+</html>
